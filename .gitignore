@@ -1,3 +1,4 @@
 contrib/.terraform
 contrib/terraform.tfstate
+contrib/terraform.tfstate.backup
 contrib/.terraform.lock.hcl

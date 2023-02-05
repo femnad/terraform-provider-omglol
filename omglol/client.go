@@ -168,7 +168,7 @@ func createRecord(a auth, record dnsRecord) (dnsRecord, error) {
 
 func doDeleteRecord(a auth, id int) error {
 	client := http.Client{Timeout: timeout}
-	endpoint := fmt.Sprintf("%s/address/%s/dns/%s", baseUrl, a.username, id)
+	endpoint := fmt.Sprintf("%s/address/%s/dns/%d", baseUrl, a.username, id)
 	authKey := fmt.Sprintf("Bearer %s", a.apiKey)
 	reqUrl, err := url.Parse(endpoint)
 	if err != nil {
