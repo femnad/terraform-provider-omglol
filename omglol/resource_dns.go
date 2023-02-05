@@ -57,8 +57,12 @@ func resourceDnsCreate(ctx context.Context, d *schema.ResourceData, m interface{
 func resourceDnsRead(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	a := m.(auth)
 	recordId := d.Id()
+	id, err := strconv.Atoi(recordId)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 
-	record, err := getRecord(a, recordId)
+	record, err := getRecord(a, id)
 	if err != nil {
 		return diag.FromErr(err)
 	}
@@ -71,13 +75,13 @@ func resourceDnsRead(ctx context.Context, d *schema.ResourceData, m interface{})
 	return diag.Diagnostics{}
 }
 
-func recordFromData(d *schema.ResourceData) dnsRecordIdInt {
+func recordFromData(d *schema.ResourceData) dnsRecord {
 	name := d.Get("name").(string)
 	rType := d.Get("type").(string)
 	data := d.Get("data").(string)
 	ttl := d.Get("ttl").(int)
 
-	record := dnsRecordIdInt{
+	record := dnsRecord{
 		Name: name,
 		Type: rType,
 		Data: data,
@@ -94,8 +98,12 @@ func resourceDnsUpdate(ctx context.Context, d *schema.ResourceData, m interface{
 func resourceDnsDelete(ctx context.Context, d *schema.ResourceData, m interface{}) diag.Diagnostics {
 	a := m.(auth)
 	id := d.Id()
+	intId, err := strconv.Atoi(id)
+	if err != nil {
+		return diag.FromErr(err)
+	}
 
-	err := deleteRecord(a, id)
+	err = deleteRecord(a, intId)
 	if err != nil {
 		return diag.FromErr(err)
 	}

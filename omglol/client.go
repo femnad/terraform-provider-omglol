@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -14,6 +15,7 @@ const (
 	timeout = 60 * time.Second
 )
 
+// dnsRecordIdStr represent records returned from read-only endpoints.
 type dnsRecordIdStr struct {
 	Id        string `json:"id,omitempty"`
 	Type      string `json:"type,omitempty"`
@@ -33,7 +35,7 @@ type listOutput struct {
 	Response listResponse
 }
 
-type dnsRecordIdInt struct {
+type dnsRecord struct {
 	Id        int    `json:"id,omitempty"`
 	Type      string `json:"type,omitempty"`
 	Name      string `json:"name,omitempty"`
@@ -44,7 +46,7 @@ type dnsRecordIdInt struct {
 }
 
 type createReceived struct {
-	Data dnsRecordIdInt `json:"data"`
+	Data dnsRecord `json:"data"`
 }
 
 type createResponse struct {
@@ -55,7 +57,7 @@ type createOutput struct {
 	Response createResponse `json:"response"`
 }
 
-func getRecords(a auth) (records []dnsRecordIdStr, err error) {
+func getRecords(a auth) (records []dnsRecord, err error) {
 	client := http.Client{Timeout: timeout}
 	endpoint := fmt.Sprintf("%s/address/%s/dns", baseUrl, a.username)
 	authKey := fmt.Sprintf("Bearer %s", a.apiKey)
@@ -78,14 +80,35 @@ func getRecords(a auth) (records []dnsRecordIdStr, err error) {
 		return records, err
 	}
 
-	records = output.Response.Dns
+	for _, record := range output.Response.Dns {
+		id, subErr := strconv.Atoi(record.Id)
+		if subErr != nil {
+			return records, err
+		}
+
+		ttl, subErr := strconv.Atoi(record.TTL)
+		if subErr != nil {
+			return records, err
+		}
+
+		canonical := dnsRecord{
+			Id:        id,
+			Type:      record.Type,
+			Name:      record.Name,
+			Data:      record.Data,
+			TTL:       ttl,
+			CreatedAt: record.CreatedAt,
+			UpdatedAt: record.UpdatedAt,
+		}
+		records = append(records, canonical)
+	}
 	return
 }
 
-func getRecord(a auth, id string) (dnsRecordIdStr, error) {
+func getRecord(a auth, id int) (dnsRecord, error) {
 	records, err := getRecords(a)
 	if err != nil {
-		return dnsRecordIdStr{}, err
+		return dnsRecord{}, err
 	}
 
 	for _, record := range records {
@@ -94,10 +117,10 @@ func getRecord(a auth, id string) (dnsRecordIdStr, error) {
 		}
 	}
 
-	return dnsRecordIdStr{}, fmt.Errorf("unable to find DNS record with ID %s", id)
+	return dnsRecord{}, fmt.Errorf("unable to find DNS record with ID %s", id)
 }
 
-func createRecord(a auth, record dnsRecordIdInt) (dnsRecordIdInt, error) {
+func createRecord(a auth, record dnsRecord) (dnsRecord, error) {
 	client := http.Client{Timeout: timeout}
 	endpoint := fmt.Sprintf("%s/address/%s/dns", baseUrl, a.username)
 	authKey := fmt.Sprintf("Bearer %s", a.apiKey)
@@ -143,7 +166,7 @@ func createRecord(a auth, record dnsRecordIdInt) (dnsRecordIdInt, error) {
 	return record, nil
 }
 
-func doDeleteRecord(a auth, id string) error {
+func doDeleteRecord(a auth, id int) error {
 	client := http.Client{Timeout: timeout}
 	endpoint := fmt.Sprintf("%s/address/%s/dns/%s", baseUrl, a.username, id)
 	authKey := fmt.Sprintf("Bearer %s", a.apiKey)
@@ -175,7 +198,7 @@ func doDeleteRecord(a auth, id string) error {
 	return nil
 }
 
-func deleteRecord(a auth, id string) error {
+func deleteRecord(a auth, id int) error {
 	records, err := getRecords(a)
 	if err != nil {
 		return err

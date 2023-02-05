@@ -2,6 +2,7 @@ package omglol
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
@@ -48,7 +49,9 @@ func dataSourceDnsRead(ctx context.Context, d *schema.ResourceData, m interface{
 
 	for _, record := range records {
 		if record.Name == name {
-			d.SetId(record.Id)
+			recordId := strconv.Itoa(record.Id)
+
+			d.SetId(recordId)
 
 			setErr := setResourceData(d, record)
 			if setErr != nil {
@@ -62,8 +65,8 @@ func dataSourceDnsRead(ctx context.Context, d *schema.ResourceData, m interface{
 	return diag.Errorf("Unable to find record with name %s", name)
 }
 
-func setResourceData(d *schema.ResourceData, record dnsRecordIdStr) error {
-	mapping := map[string]*string{
+func setResourceData(d *schema.ResourceData, record dnsRecord) error {
+	mapping := map[string]any{
 		"data": &record.Data,
 		"ttl":  &record.TTL,
 		"type": &record.Type,
