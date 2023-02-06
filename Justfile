@@ -1,8 +1,10 @@
 build:
     #!/usr/bin/env bash
+    version=$(git tag | tail -n 1 | cut -c2-)
     set -euEo pipefail
     go build -o terraform-provider-omglol
-    mv terraform-provider-omglol ~/.terraform.d/plugins/registry.terraform.io/femnad/omglol/0.1.0/linux_amd64/
+    mkdir -p ~/.terraform.d/plugins/registry.terraform.io/femnad/omglol/$version/linux_amd64/
+    mv terraform-provider-omglol ~/.terraform.d/plugins/registry.terraform.io/femnad/omglol/$version/linux_amd64/
     pushd contrib
     if [ -f .terraform.lock.hcl ]
     then
