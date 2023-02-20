@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -14,26 +13,6 @@ import (
 const (
 	timeout = 60 * time.Second
 )
-
-// dnsRecordIdStr represent records returned from read-only endpoints.
-type dnsRecordIdStr struct {
-	Id        string `json:"id,omitempty"`
-	Type      string `json:"type,omitempty"`
-	Name      string `json:"name,omitempty"`
-	Data      string `json:"data,omitempty"`
-	TTL       string `json:"ttl,omitempty"`
-	CreatedAt string `json:"created_at,omitempty"`
-	UpdatedAt string `json:"updated_at,omitempty"`
-}
-
-type listResponse struct {
-	Message string
-	Dns     []dnsRecordIdStr
-}
-
-type listOutput struct {
-	Response listResponse
-}
 
 type dnsRecord struct {
 	Id        int    `json:"id,omitempty"`
@@ -43,6 +22,15 @@ type dnsRecord struct {
 	TTL       int    `json:"ttl,omitempty"`
 	CreatedAt string `json:"created_at,omitempty"`
 	UpdatedAt string `json:"updated_at,omitempty"`
+}
+
+type listResponse struct {
+	Message string
+	Dns     []dnsRecord
+}
+
+type listOutput struct {
+	Response listResponse
 }
 
 type createReceived struct {
@@ -80,29 +68,7 @@ func getRecords(a auth) (records []dnsRecord, err error) {
 		return records, err
 	}
 
-	for _, record := range output.Response.Dns {
-		id, subErr := strconv.Atoi(record.Id)
-		if subErr != nil {
-			return records, err
-		}
-
-		ttl, subErr := strconv.Atoi(record.TTL)
-		if subErr != nil {
-			return records, err
-		}
-
-		canonical := dnsRecord{
-			Id:        id,
-			Type:      record.Type,
-			Name:      record.Name,
-			Data:      record.Data,
-			TTL:       ttl,
-			CreatedAt: record.CreatedAt,
-			UpdatedAt: record.UpdatedAt,
-		}
-		records = append(records, canonical)
-	}
-	return
+	return output.Response.Dns, nil
 }
 
 func getRecord(a auth, id int) (dnsRecord, error) {
