@@ -83,7 +83,7 @@ func getRecord(a auth, id int) (dnsRecord, error) {
 		}
 	}
 
-	return dnsRecord{}, fmt.Errorf("unable to find DNS record with ID %s", id)
+	return dnsRecord{}, fmt.Errorf("unable to find DNS record with ID %d", id)
 }
 
 func createRecord(a auth, record dnsRecord) (dnsRecord, error) {
