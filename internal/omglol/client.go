@@ -3,7 +3,7 @@ package omglol
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -14,8 +14,8 @@ const (
 	timeout = 60 * time.Second
 )
 
-type dnsRecord struct {
-	Id        int    `json:"id,omitempty"`
+type DNSRecord struct {
+	ID        int    `json:"id,omitempty"`
 	Type      string `json:"type,omitempty"`
 	Name      string `json:"name,omitempty"`
 	Data      string `json:"data,omitempty"`
@@ -26,7 +26,7 @@ type dnsRecord struct {
 
 type listResponse struct {
 	Message string
-	Dns     []dnsRecord
+	Dns     []DNSRecord
 }
 
 type listOutput struct {
@@ -34,7 +34,7 @@ type listOutput struct {
 }
 
 type createReceived struct {
-	Data dnsRecord `json:"data"`
+	Data DNSRecord `json:"data"`
 }
 
 type createResponse struct {
@@ -45,10 +45,19 @@ type createOutput struct {
 	Response createResponse `json:"response"`
 }
 
-func getRecords(a auth) (records []dnsRecord, err error) {
+type Client struct {
+	username string
+	apiKey   string
+}
+
+func NewClient(username, apiKey string) (Client, error) {
+	return Client{username: username, apiKey: apiKey}, nil
+}
+
+func (c Client) getRecords() (records []DNSRecord, err error) {
 	client := http.Client{Timeout: timeout}
-	endpoint := fmt.Sprintf("%s/address/%s/dns", baseUrl, a.username)
-	authKey := fmt.Sprintf("Bearer %s", a.apiKey)
+	endpoint := fmt.Sprintf("%s/address/%s/dns", baseUrl, c.username)
+	authKey := fmt.Sprintf("Bearer %s", c.apiKey)
 	reqUrl, err := url.Parse(endpoint)
 	if err != nil {
 		return records, err
@@ -71,25 +80,25 @@ func getRecords(a auth) (records []dnsRecord, err error) {
 	return output.Response.Dns, nil
 }
 
-func getRecord(a auth, id int) (dnsRecord, error) {
-	records, err := getRecords(a)
+func (c Client) GetRecord(id int) (DNSRecord, error) {
+	records, err := c.getRecords()
 	if err != nil {
-		return dnsRecord{}, err
+		return DNSRecord{}, err
 	}
 
 	for _, record := range records {
-		if id == record.Id {
+		if id == record.ID {
 			return record, nil
 		}
 	}
 
-	return dnsRecord{}, fmt.Errorf("unable to find DNS record with ID %d", id)
+	return DNSRecord{}, fmt.Errorf("unable to find DNS record with ID %d", id)
 }
 
-func createRecord(a auth, record dnsRecord) (dnsRecord, error) {
+func (c Client) CreateRecord(record DNSRecord) (DNSRecord, error) {
 	client := http.Client{Timeout: timeout}
-	endpoint := fmt.Sprintf("%s/address/%s/dns", baseUrl, a.username)
-	authKey := fmt.Sprintf("Bearer %s", a.apiKey)
+	endpoint := fmt.Sprintf("%s/address/%s/dns", baseUrl, c.username)
+	authKey := fmt.Sprintf("Bearer %s", c.apiKey)
 	reqUrl, err := url.Parse(endpoint)
 	if err != nil {
 		return record, err
@@ -99,7 +108,7 @@ func createRecord(a auth, record dnsRecord) (dnsRecord, error) {
 	if err != nil {
 		return record, err
 	}
-	bodyReader := ioutil.NopCloser(strings.NewReader(string(m)))
+	bodyReader := io.NopCloser(strings.NewReader(string(m)))
 
 	req := http.Request{
 		Method: "POST",
@@ -115,7 +124,7 @@ func createRecord(a auth, record dnsRecord) (dnsRecord, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		respBody, subErr := ioutil.ReadAll(resp.Body)
+		respBody, subErr := io.ReadAll(resp.Body)
 		if subErr != nil {
 			return record, subErr
 		}
@@ -128,14 +137,14 @@ func createRecord(a auth, record dnsRecord) (dnsRecord, error) {
 		return record, err
 	}
 
-	record.Id = output.Response.ResponseReceived.Data.Id
+	record.ID = output.Response.ResponseReceived.Data.ID
 	return record, nil
 }
 
-func doDeleteRecord(a auth, id int) error {
+func (c Client) doDeleteRecord(id int) error {
 	client := http.Client{Timeout: timeout}
-	endpoint := fmt.Sprintf("%s/address/%s/dns/%d", baseUrl, a.username, id)
-	authKey := fmt.Sprintf("Bearer %s", a.apiKey)
+	endpoint := fmt.Sprintf("%s/address/%s/dns/%d", baseUrl, c.username, id)
+	authKey := fmt.Sprintf("Bearer %s", c.apiKey)
 	reqUrl, err := url.Parse(endpoint)
 	if err != nil {
 		return err
@@ -154,7 +163,7 @@ func doDeleteRecord(a auth, id int) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode >= 400 {
-		respBody, subErr := ioutil.ReadAll(resp.Body)
+		respBody, subErr := io.ReadAll(resp.Body)
 		if subErr != nil {
 			return subErr
 		}
@@ -164,15 +173,15 @@ func doDeleteRecord(a auth, id int) error {
 	return nil
 }
 
-func deleteRecord(a auth, id int) error {
-	records, err := getRecords(a)
+func (c Client) deleteRecord(id int) error {
+	records, err := c.getRecords()
 	if err != nil {
 		return err
 	}
 
 	for _, record := range records {
-		if record.Id == id {
-			subErr := doDeleteRecord(a, id)
+		if record.ID == id {
+			subErr := c.doDeleteRecord(id)
 			if subErr != nil {
 				return subErr
 			}

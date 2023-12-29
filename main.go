@@ -1,19 +1,25 @@
 package main
 
 import (
-	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-
-	"github.com/femnad/terraform-provider-omglol/omglol"
+	"context"
+	"flag"
+	"github.com/femnad/terraform-provider-omglol/internal/provider"
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"log"
 )
 
-// Generate the Terraform provider documentation using `tfplugindocs`:
-//go:generate go run github.com/hashicorp/terraform-plugin-docs/cmd/tfplugindocs
-
 func main() {
-	plugin.Serve(&plugin.ServeOpts{
-		ProviderFunc: func() *schema.Provider {
-			return omglol.Provider()
-		},
-	})
+	var debug bool
+
+	flag.BoolVar(&debug, "debug", false, "set to true to run the provider with support for debuggers like delve")
+	flag.Parse()
+
+	opts := providerserver.ServeOpts{
+		Address: "https://registry.terraform.io/providers/femnad/omglol",
+	}
+
+	err := providerserver.Serve(context.Background(), provider.New(), opts)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
